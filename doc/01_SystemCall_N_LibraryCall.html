@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title> System Call & Library Call </title>
+	<meta charset = "utf-8">
+</head>
+
+<body>
+	<h1> System Call & Library Call </h1>
+
+	<h2> Contents </h2>
+	<p>
+	C언어에서 제공하고 있는 표준함수는 POSIX(Portable Operating System Interface)의 규정에 따라 함수를 제공하고 있으며, OS(UNIX/LINUX) 개발사 또는 Compiler 개발사에서 추가적으로 확장 API들을 제공하는 것이 일반적이다. C언어를 활용하여 개발하는 개발자 입장에서는 시스템 콜 함수(System Call Function)이든 라이브러리 콜 함수(Library Call Function)이든 단지 함수의 형태이므로 특별히 구별되지 않는다. 그러나 System Call Function이 자주 호출되면 시스템 성능에 영향을 주므로 최대한 자제해야 한다. System Call Function과 Library Call Function의 차이에 대해서 알고 사용하면 더 효율적인 프로그램을 작성할 수 있을 것이다.<br><br>
+	System Cal Function은 UNIX/LINUX와 같은 OS의 Kernel에 서비스를 요청할 때에 호출하는 함수를 말한다. 이들은 주로 hardware와 관련된서비스 프로세스의 생성/종료, 파일의 I/O 등을 처리하며 System Call 시에는 프로그램이 User Mode가 아닌 Kernel Mode로 실행된다. 잦은 System Call은 시스템 resource를 효율적으로 사용할 수 없다. 대표적인 System Call Function으로는 fork, execve, _exit, kill, open, read, write, close 등의 함수가 있다.<br><br>
+	Library Call도 내부적으로는 System Call을 사용하기도 하지만, 개발을 쉽게 할 수 있도록 기능을 제공한 Utility성 함수, System Call 최소화를 위한 fopen, fclose, fread, fwrite, exit, malloc, free 등의 함수들이 있다.
+	</p>
+
+	<h2> Features </h2>
+	<p>
+	- Return Type 및 값의 차이<br>
+	: System Call Function의 return type은 int이며, 오류는 -1 이고 정상이면 0 또는 1 이상의 값을 return 한다. 또한, 오류(return 값이 -1)이면 상세 오류 내용에 대해서는 errno라는 전역변수에 오류 코드가 저장된다. 오류 내용을 문자열로 표시하기 위해서는 strerror(errno)를 통해서 확인할 수 있다.<br>
+	Library Call Function의 return type은 pointer, void, int등 function의 목적에 따라 다양하다. 내부적으로 System Call Function을 호출하다가 오류가 발생한 경우에 대해서는 errno에 오류 코드가 설정되기도 한다.
+	</p>
+	<p>
+	- UNIX / LINUX manual의 Section 번호의 차이<br>
+	: UNIX / LINUX의 메뉴얼은 명령어 man(manual)을 통해서 제공되고 있으며, manual은 manual의 영역에 따라 section 번호를 제공하는데, System Call Function은 section 번호 2번을 Library Call Function은 section 번호 3번을 사용한다.<br><br>
+	1 : User Commands<br>
+	2 : System Call Function<br>
+	3 : Library Call Function<br>
+	4 : Special Files<br>
+	5 : File Formats<br>
+	6 : Games<br>
+	7 : Conventions and Miscellany<br>
+	8 : Administration and Privilleged Commands<br>
+	</p>
+
+	<h2> Memory Allocation </h2>
+	<p>
+	System Call Function은 프로그램 내부에서 메모리를 할당 또는 해제하지 않는다. 메모리 할당이 필요한 경우에는 반드시 외부에서 할당하여 parameter로 넘긴다든지 해야한다. Library Call Function은 내부에서 메모리를 할당하여 return 할 수도 있다.<br><br>
+	ex) 프로그램 내부에서 메모리 할당되어 return 되는 예<br>
+	void* malloc(size_t size);<br>
+	FILE* fopen(const char* filename, const char* mode);<br><br>
+	: 위와 같이 malloc 함수처럼 메모리 할당은 OS 고유의 기능인데도 불구하고 malloc 함수는 내부에 메모리를 할당하여 return 하므로 System Call Function이 아니다.
+	</p>
+
+	<h2> System Call Replace Function </h2>
+	<p>
+	File I/O를 위한 함수로서 System Call Function으로는 open/read/write/close 등이 있으며, Library Call Function은 fopen/fread/fwrite/fprintf/fclose 등이 있다. 이들 System Call Function은 File에서 read(2)/write(2)를 호출할 때마다 Kernel I/O가 발생하며 바로 바로 파일에 기록된다.(OS 내부에서 caching을 할 수도 있지만) 그러나 Library Call Function은 File에 read/write시에 특정 size(BUFSIZE 상수값의 크기)의 데이터가 모일 때까지 read/write를 하지 않고 buffer 크기를 벗어날 때에 내부적으로 read/write를 한번만 실행하여 resource를 효율적으로 사용하게 된다. fwrite(3) 등으로 write한 데이터가 write 되지 않고 남겨진 경우에 대해서는 fflush(3) 또는 fclose(3)를 수행시에 buffering된 데이터는 Disk에 write 된다. 만약에 프로그램에서 실수로 fclose(3)를 하지 않고 종료를 하는 경우에는 어떻게 될까? 그것은 아래의 exit(3) 함수가 책임진다.<br><br>
+	System Call Function으로 오해하기 쉬운 Function으로는 exit(3)이 있는데, 이는 프로세스를 종료하는 Library Call Function 이다. 이에 대응하는 System Call은 _exit(2)이다. exit(3)은 wrapping한 function으로 fopen(3)으로 열어 둔 모든 FILE*를 close 한다. 이를 통해서 저장되지 않은 메모리의 데이터는 파일에 저장된다. 또한 atexit(3) 함수로 프로그램 종료 시에 실행하도록 등록된 callback 함수를 실행한다. 만약 fclose(3)로 FILE*를 close 하지 않은 상태에서 _exit(2) System Call 함수를 호출하여 프로그램을 종료하거나 비정상적으로 프로세스가 종료한다면 메모리에 남겨진 미 저장된 데이터는 File에 write 되지 않고 사라지게 된다.
+	</p>
+</body>
+</html>
